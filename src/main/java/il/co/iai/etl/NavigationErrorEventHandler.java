@@ -54,11 +54,10 @@ public class NavigationErrorEventHandler implements EventHandler {
           return updatedState;
         }
       ))
-      .stateSnapshots()
       .window(Duration.apply(60000))
       .flatMap(navErrorState -> {
         Long currentTime = System.currentTimeMillis();
-        List<FlightEvent> handledEvents = navErrorState._2.getHandledEvents();
+        List<FlightEvent> handledEvents = navErrorState.getHandledEvents();
         if (currentTime - systemStartTime >= 30000) {
           Double max = handledEvents.stream().max(Comparator.comparing(FlightEvent::getNav_total_error))
             .map(FlightEvent::getNav_total_error)

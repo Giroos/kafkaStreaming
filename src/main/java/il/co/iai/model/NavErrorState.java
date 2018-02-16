@@ -2,6 +2,7 @@ package il.co.iai.model;
 
 import il.co.iai.utils.StreamUtils;
 import lombok.Data;
+import scala.Tuple2;
 
 import java.io.Serializable;
 import java.util.*;
@@ -13,9 +14,9 @@ import static java.lang.Math.sqrt;
 @Data
 public class NavErrorState implements Serializable {
 
-  private Map<Double, Long> nav_x_hist = new HashMap<>();
-  private Map<Double, Long> nav_y_hist = new HashMap<>();
-  private Map<Double, Long> nav_z_hist = new HashMap<>();
+  private List<Tuple2<Double, Long>> nav_x_hist = new ArrayList<>();
+  private List<Tuple2<Double, Long>> nav_y_hist = new ArrayList<>();
+  private List<Tuple2<Double, Long>> nav_z_hist = new ArrayList<>();
 
   private FlightEvent lastFlightEvent;
   private List<FlightEvent> handledEvents = new ArrayList<>();
@@ -75,18 +76,18 @@ public class NavErrorState implements Serializable {
   public NavErrorState mergeWith(NavErrorState that) {
     NavErrorState newState = new NavErrorState(this);
 
-    that.getNav_x_hist().forEach((navError, counter) -> newState.updateHistogram(getNav_x_hist(), navError));
-    that.getNav_y_hist().forEach((navError, counter) -> newState.updateHistogram(getNav_y_hist(), navError));
-    that.getNav_z_hist().forEach((navError, counter) -> newState.updateHistogram(getNav_z_hist(), navError));
+    that.getNav_x_hist().forEach((navError) -> newState.updateHistogram(getNav_x_hist(), navError._1()));
+    that.getNav_y_hist().forEach((navError) -> newState.updateHistogram(getNav_y_hist(), navError._1()));
+    that.getNav_z_hist().forEach((navError) -> newState.updateHistogram(getNav_z_hist(), navError._1()));
 
     Stream<NavError> navErrors = StreamUtils.zip(
-      getNav_x_hist().entrySet().stream(),
-      getNav_y_hist().entrySet().stream(),
-      getNav_z_hist().entrySet().stream())
+      getNav_x_hist().stream(),
+      getNav_y_hist().stream(),
+      getNav_z_hist().stream())
       .map(axisErrors -> {
-        Double navErrorX = axisErrors._1().getKey();
-        Double navErrorY = axisErrors._2().getKey();
-        Double navErrorZ = axisErrors._3().getKey();
+        Double navErrorX = axisErrors._1()._1();
+        Double navErrorY = axisErrors._2()._1();
+        Double navErrorZ = axisErrors._3()._1();
         return new NavError(navErrorX, navErrorY, navErrorZ,
           calculateNavTotalError(navErrorX, navErrorY, navErrorZ));
       });
@@ -137,11 +138,13 @@ public class NavErrorState implements Serializable {
 
   }
 
-  private void updateHistogram(Map<Double, Long> histMap, Double navError) {
-    if (histMap.containsKey(navError)) {
-      histMap.put(navError, histMap.get(navError) + 1);
-    } else {
-      histMap.put(navError, 1L);
-    }
+  private void updateHistogram(List<Tuple2<Double, Long>> histogram, Double navError) {
+    StreamUtils.indexOf(histogram, (Tuple2<Double, Long> histTuple) -> histTuple._1().equals(navError))
+      .ifPresent(idx -> {
+        Tuple2<Double, Long> currentErrorCounter = histogram.get(idx);
+        histogram.remove(idx.intValue());
+        Tuple2<Double, Long> updatedCounter = new Tuple2<>(currentErrorCounter._1(), currentErrorCounter._2() + 1);
+        histogram.add(idx, updatedCounter);
+      });
   }
 }

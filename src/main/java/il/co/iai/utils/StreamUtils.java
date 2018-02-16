@@ -2,12 +2,11 @@ package il.co.iai.utils;
 
 import scala.Tuple2;
 import scala.Tuple3;
-import java.util.Iterator;
-import java.util.Spliterator;
-import java.util.Spliterators;
+
+import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-
 
 public class StreamUtils {
   public static <A, B> Stream<Tuple2<A, B>> zip(Stream<A> first, Stream<B> second) {
@@ -22,6 +21,17 @@ public class StreamUtils {
     return StreamSupport.stream(
       Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED),
       false);
+  }
+
+  public static <A> Optional<Integer> indexOf(List<A> list, Predicate<A> predicate) {
+    int idx = 0;
+    for (A item: list) {
+      if (predicate.test(item)) {
+        return Optional.of(idx);
+      }
+      idx++;
+    }
+    return Optional.empty();
   }
 
   public static class ZipIterator<A, B> implements Iterator<Tuple2<A, B>> {
