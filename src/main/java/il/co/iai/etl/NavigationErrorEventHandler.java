@@ -20,6 +20,7 @@ import scala.Tuple2;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static il.co.iai.model.EventType.NAV;
 import static java.lang.Math.pow;
@@ -33,7 +34,7 @@ public class NavigationErrorEventHandler implements EventHandler {
 
   @Override
   public JavaDStream<FlightEvent> handle(JavaDStream<FlightEvent> dStream) {
-    return dStream
+    JavaPairDStream<Long, NavErrorState> navErrorsStream = dStream
       .filter(e -> NAV.equals(e.getType()))
       .transformToPair(rdd -> rdd
         .sortBy(FlightEvent::getTime, true, 1)
@@ -43,19 +44,17 @@ public class NavigationErrorEventHandler implements EventHandler {
         NavErrorState::handle,
         NavErrorState::mergeWith,
         new HashPartitioner(8)
+      );
+
+    return navErrorsStream
+      .updateStateByKey((navErrorStates, partitioner) -> navErrorStates.stream()
+        .reduce(NavErrorState::mergeWith)
+        .map(state -> Optional.of((Object) state))
+        .orElse(Optional.empty())
       )
-      .mapWithState(StateSpec.function((Long key, Optional<NavErrorState> currentNavError, State<NavErrorState> state) -> {
-          NavErrorState updatedState;
-          if (currentNavError.isPresent()) {
-            updatedState = currentNavError.get().mergeWith(state.get());
-          } else {
-            updatedState = state.get();
-          }
-          return updatedState;
-        }
-      ))
       .window(Duration.apply(60000))
-      .flatMap(navErrorState -> {
+      .flatMap(tuple -> {
+        NavErrorState navErrorState = (NavErrorState) tuple._2();
         Long currentTime = System.currentTimeMillis();
         List<FlightEvent> handledEvents = navErrorState.getHandledEvents();
         if (currentTime - systemStartTime >= 30000) {

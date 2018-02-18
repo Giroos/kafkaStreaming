@@ -139,12 +139,17 @@ public class NavErrorState implements Serializable {
   }
 
   private void updateHistogram(List<Tuple2<Double, Long>> histogram, Double navError) {
-    StreamUtils.indexOf(histogram, (Tuple2<Double, Long> histTuple) -> histTuple._1().equals(navError))
-      .ifPresent(idx -> {
-        Tuple2<Double, Long> currentErrorCounter = histogram.get(idx);
-        histogram.remove(idx.intValue());
-        Tuple2<Double, Long> updatedCounter = new Tuple2<>(currentErrorCounter._1(), currentErrorCounter._2() + 1);
-        histogram.add(idx, updatedCounter);
-      });
+    Optional<Integer> navErrorIdx = StreamUtils
+      .indexOf(histogram, (Tuple2<Double, Long> histTuple) -> histTuple._1().equals(navError));
+
+    if (navErrorIdx.isPresent()) {
+      int idx = navErrorIdx.get();
+      Tuple2<Double, Long> currentErrorCounter = histogram.get(idx);
+      histogram.remove(idx);
+      Tuple2<Double, Long> updatedCounter = new Tuple2<>(currentErrorCounter._1(), currentErrorCounter._2() + 1);
+      histogram.add(idx, updatedCounter);
+    } else {
+      histogram.add(new Tuple2<>(navError, 0L));
+    }
   }
 }
