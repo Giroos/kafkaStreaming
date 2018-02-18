@@ -1,0 +1,1 @@
+third_party = "D:\\opt\\spark-streaming-kafka-0-8-assembly_2.10-2.2.0.jar"
